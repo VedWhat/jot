@@ -1,3 +1,3 @@
-- [ ] Fix weirdly sized icon
+- [x] Fix weirdly sized icon
 - [ ] Server sync
 - [ ] MCP 

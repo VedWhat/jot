@@ -9,6 +9,7 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@tauri-apps/api": "^2.0.0",
     "@expo-google-fonts/dm-sans": "^0.4.2",
     "@expo-google-fonts/space-mono": "^0.4.2",
     "@expo/metro-runtime": "~6.1.2",
