@@ -7,6 +7,7 @@ node_modules/
 .expo/
 dist/
 C*
+!complete-logo.png
 web-build/
 expo-env.d.ts
 
