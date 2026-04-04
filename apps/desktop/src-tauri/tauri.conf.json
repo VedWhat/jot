@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "identifier": "com.ved.jot",
   "build": {
-    "beforeDevCommand": "cd ../mobile && BROWSER=none npx expo start --web --port 8081",
+    "beforeDevCommand": "",
     "beforeBuildCommand": "cd ../mobile && npx expo export --platform web",
     "frontendDist": "../../mobile/dist",
     "devUrl": "http://localhost:8081"

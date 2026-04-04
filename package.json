@@ -9,7 +9,8 @@
   ],
   "scripts": {
     "android": "cd apps/mobile && npx expo run:android",
-    "mac:dev": "cd apps/mobile && npx expo start --web --port 8081",
+    "mac:expo": "cd apps/mobile && BROWSER=none npx expo start --web --port 8081",
+    "mac:tauri": "cd apps/desktop && npm run dev",
     "mac:build": "cd apps/desktop && npm run build"
   }
 }
