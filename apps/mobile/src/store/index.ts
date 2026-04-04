@@ -1,14 +1,20 @@
 import { create } from 'zustand';
-import { Jot, getAllJots, saveJot, deleteJot } from '../db';
+import { Jot, getAllJots, saveJot, deleteJot, updateJot, updateJotSha, upsertJot } from '../db';
 import { generateTitle } from '../utils/title';
 import { getSecret, setSecret } from '../storage/secrets';
 import { EngineName } from '../engines/types';
+import { syncJots } from '../sync/github';
 
 type View = 'record' | 'gallery';
 
 export interface ApiKeys {
   openai: string;
   elevenlabs: string;
+}
+
+export interface GitHubSettings {
+  pat: string;
+  repo: string; // "owner/repo"
 }
 
 interface JotStore {
@@ -23,6 +29,7 @@ interface JotStore {
   loadJots: () => Promise<void>;
   addJot: (params: { transcript: string; engine: EngineName; duration_seconds: number }) => Promise<void>;
   removeJot: (id: number) => Promise<void>;
+  editJot: (id: number, transcript: string) => Promise<void>;
 
   // Engine preference
   engine: EngineName;
@@ -32,6 +39,14 @@ interface JotStore {
   apiKeys: ApiKeys;
   loadApiKeys: () => Promise<void>;
   saveApiKey: (service: keyof ApiKeys, value: string) => Promise<void>;
+
+  // GitHub sync
+  github: GitHubSettings;
+  loadGithubSettings: () => Promise<void>;
+  saveGithubSettings: (settings: GitHubSettings) => Promise<void>;
+  isSyncing: boolean;
+  syncError: string | null;
+  syncWithGitHub: () => Promise<void>;
 
   // Recording state
   isRecording: boolean;
@@ -71,6 +86,12 @@ export const useJotStore = create<JotStore>((set, get) => ({
     await deleteJot(id);
     set((s) => ({ jots: s.jots.filter((j) => j.id !== id) }));
   },
+  editJot: async (id, transcript) => {
+    const title = generateTitle(transcript);
+    await updateJot(id, title, transcript);
+    const jots = await getAllJots();
+    set({ jots });
+  },
 
   engine: 'webspeech',
   setEngine: (e) => set({ engine: e }),
@@ -87,6 +108,48 @@ export const useJotStore = create<JotStore>((set, get) => ({
     const storageKey = service === 'openai' ? 'openai_api_key' : 'elevenlabs_api_key';
     await setSecret(storageKey, value);
     set((s) => ({ apiKeys: { ...s.apiKeys, [service]: value } }));
+  },
+
+  github: { pat: '', repo: '' },
+  loadGithubSettings: async () => {
+    const [pat, repo] = await Promise.all([
+      getSecret('github_pat'),
+      getSecret('github_repo'),
+    ]);
+    set({ github: { pat: pat ?? '', repo: repo ?? '' } });
+  },
+  saveGithubSettings: async ({ pat, repo }) => {
+    await Promise.all([
+      setSecret('github_pat', pat.trim()),
+      setSecret('github_repo', repo.trim()),
+    ]);
+    set({ github: { pat: pat.trim(), repo: repo.trim() } });
+  },
+
+  isSyncing: false,
+  syncError: null,
+  syncWithGitHub: async () => {
+    const { github, jots } = get();
+    if (!github.pat || !github.repo) {
+      set({ syncError: 'GitHub PAT and repo are required' });
+      return;
+    }
+    set({ isSyncing: true, syncError: null });
+    try {
+      await syncJots(
+        jots,
+        github.pat,
+        github.repo,
+        async (id, sha) => { await updateJotSha(id, sha); },
+        async (params) => { await upsertJot(params); },
+      );
+      const updated = await getAllJots();
+      set({ jots: updated });
+    } catch (e) {
+      set({ syncError: e instanceof Error ? e.message : 'Sync failed' });
+    } finally {
+      set({ isSyncing: false });
+    }
   },
 
   isRecording: false,

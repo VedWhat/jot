@@ -15,7 +15,7 @@ import { useJotStore } from './src/store';
 import { getDb } from './src/db';
 
 export default function App() {
-  const { view, loadJots, loadApiKeys } = useJotStore();
+  const { view, loadJots, loadApiKeys, loadGithubSettings } = useJotStore();
 
   const [fontsLoaded, fontError] = useFonts({
     DMSans: DMSans_400Regular,
@@ -25,7 +25,7 @@ export default function App() {
   });
 
   useEffect(() => {
-    getDb().then(() => Promise.all([loadJots(), loadApiKeys()])).catch(console.error);
+    getDb().then(() => Promise.all([loadJots(), loadApiKeys(), loadGithubSettings()])).catch(console.error);
   }, []);
 
   // Render with system fonts if custom fonts fail (e.g. no network in Tauri)

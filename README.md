@@ -34,3 +34,12 @@ cd apps/desktop && npm run build
 | elevenlabs | ElevenLabs Scribe API | Yes |
 
 API keys are entered in-app via ⚙️ and stored securely on-device.
+
+---
+
+## Server Sync
+
+jot uses a very simple github repo syncing procedure, this is done to save costs :D if you wish to sync it across devices
+create a simple private (or public) repo and just add a fine grained github pat with the owner/repo in it. 
+
+Every sync will be a simple uuid and hash lookup and compare.
