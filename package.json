@@ -1,0 +1,15 @@
+{
+  "name": "jot",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "android": "cd apps/mobile && npx expo run:android",
+    "mac:dev": "cd apps/mobile && npx expo start --web --port 8081",
+    "mac:build": "cd apps/desktop && npm run build"
+  }
+}

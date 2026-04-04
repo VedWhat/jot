@@ -1,0 +1,35 @@
+{
+  "productName": "Jot",
+  "version": "0.1.0",
+  "identifier": "com.ved.jot",
+  "build": {
+    "beforeDevCommand": "cd ../mobile && BROWSER=none npx expo start --web --port 8081",
+    "beforeBuildCommand": "cd ../mobile && npx expo export --platform web",
+    "frontendDist": "../../mobile/dist",
+    "devUrl": "http://localhost:8081"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Jot",
+        "width": 480,
+        "height": 840,
+        "resizable": false,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": ["icons/icon.icns", "icons/icon.png"],
+    "macOS": {
+      "minimumSystemVersion": "13.0",
+      "entitlements": "./entitlements.plist",
+      "infoPlist": "./Info.plist"
+    }
+  }
+}
