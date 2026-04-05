@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22 22" width="22" height="22">
+  <!-- Template image: pure black, macOS inverts for dark mode automatically -->
+  <!-- Waveform bars, centered in 22×22 -->
+  <rect x="1"  y="8"  width="2.5" height="6"  rx="1.25" fill="black" opacity="0.4"/>
+  <rect x="4.5" y="5" width="2.5" height="12" rx="1.25" fill="black" opacity="0.65"/>
+  <rect x="8"  y="2"  width="2.5" height="18" rx="1.25" fill="black"/>
+  <rect x="11.5" y="0.5" width="2.5" height="21" rx="1.25" fill="black"/>
+  <rect x="15" y="2"  width="2.5" height="18" rx="1.25" fill="black"/>
+  <rect x="18.5" y="5" width="2.5" height="12" rx="1.25" fill="black" opacity="0.65"/>
+</svg>

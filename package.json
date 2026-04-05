@@ -4,13 +4,10 @@
   "private": true,
   "packageManager": "pnpm@9.0.0",
   "workspaces": [
-    "apps/*",
-    "packages/*"
+    "apps/desktop"
   ],
   "scripts": {
-    "android": "cd apps/mobile && npx expo run:android",
-    "mac:expo": "cd apps/mobile && BROWSER=none npx expo start --web --port 8081",
-    "mac:tauri": "cd apps/desktop && npm run dev",
-    "mac:build": "cd apps/desktop && npm run build"
+    "dev": "cd apps/desktop && pnpm tauri:dev",
+    "build": "cd apps/desktop && pnpm tauri:build"
   }
 }

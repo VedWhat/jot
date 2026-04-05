@@ -3,19 +3,24 @@
   "version": "0.1.0",
   "identifier": "com.ved.jot",
   "build": {
-    "beforeDevCommand": "",
-    "beforeBuildCommand": "cd ../mobile && npx expo export --platform web",
-    "frontendDist": "../../mobile/dist",
-    "devUrl": "http://localhost:8081"
+    "beforeDevCommand": "pnpm dev",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420"
   },
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Jot",
-        "width": 480,
-        "height": 840,
+        "width": 380,
+        "height": 580,
         "resizable": false,
-        "center": true
+        "decorations": false,
+        "visible": false,
+        "skipTaskbar": true,
+        "alwaysOnTop": true,
+        "shadow": true
       }
     ],
     "security": {
@@ -26,6 +31,10 @@
     "active": true,
     "targets": "all",
     "icon": ["icons/icon.icns", "icons/icon.png"],
+    "resources": {
+      "icons/tray-iconTemplate.png": "icons/tray-iconTemplate.png",
+      "icons/tray-iconTemplate@2x.png": "icons/tray-iconTemplate@2x.png"
+    },
     "macOS": {
       "minimumSystemVersion": "13.0",
       "entitlements": "./entitlements.plist",
