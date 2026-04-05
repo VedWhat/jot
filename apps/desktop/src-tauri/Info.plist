@@ -6,5 +6,7 @@
   <string>Jot needs microphone access to record your voice notes.</string>
   <key>NSSpeechRecognitionUsageDescription</key>
   <string>Jot uses speech recognition to transcribe your voice notes.</string>
+  <key>LSUIElement</key>
+  <true/>
 </dict>
 </plist>

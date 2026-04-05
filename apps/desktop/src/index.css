@@ -1,0 +1,59 @@
+@import '@fontsource/dm-sans/400.css';
+@import '@fontsource/dm-sans/600.css';
+@import '@fontsource/dm-sans/700.css';
+@import '@fontsource/space-mono/400.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  /* Warm off-white — matches stone-50 */
+  background: #FAFAF9;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+[role='button'] {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Thin warm scrollbar */
+::-webkit-scrollbar {
+  width: 3px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #D6D3D1;
+  border-radius: 2px;
+}
+
+/* Recording pulse — soft, not harsh */
+@keyframes mic-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(226, 75, 74, 0.2); }
+  50%       { box-shadow: 0 0 0 14px rgba(226, 75, 74, 0); }
+}
+.mic-pulse {
+  animation: mic-pulse 2.2s ease-in-out infinite;
+}
+
+textarea {
+  resize: none;
+}
+
+.drag-region {
+  -webkit-app-region: drag;
+}
+.no-drag {
+  -webkit-app-region: no-drag;
+}

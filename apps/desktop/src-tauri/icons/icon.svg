@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Background circle -->
+  <rect width="1024" height="1024" rx="224" fill="#111111"/>
+
+  <!-- Waveform bars — centered, mic-capture feel -->
+  <!-- Bar 1 (leftmost, short) -->
+  <rect x="192" y="412" width="72" height="200" rx="36" fill="white" opacity="0.35"/>
+  <!-- Bar 2 -->
+  <rect x="296" y="332" width="72" height="360" rx="36" fill="white" opacity="0.55"/>
+  <!-- Bar 3 (tallest, center-left) -->
+  <rect x="400" y="252" width="72" height="520" rx="36" fill="white"/>
+  <!-- Bar 4 (center, accent) -->
+  <rect x="504" y="192" width="72" height="640" rx="36" fill="#E24B4A"/>
+  <!-- Bar 5 (center-right) -->
+  <rect x="608" y="252" width="72" height="520" rx="36" fill="white"/>
+  <!-- Bar 6 -->
+  <rect x="712" y="332" width="72" height="360" rx="36" fill="white" opacity="0.55"/>
+  <!-- Bar 7 (rightmost, short) -->
+  <rect x="816" y="412" width="72" height="200" rx="36" fill="white" opacity="0.35"/>
+
+  <!-- Dot below center bar — like a recording indicator -->
+  <circle cx="540" cy="880" r="28" fill="#E24B4A"/>
+</svg>
