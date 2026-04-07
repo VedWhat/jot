@@ -8,6 +8,7 @@
   ],
   "scripts": {
     "dev": "cd apps/desktop && pnpm tauri:dev",
-    "build": "cd apps/desktop && pnpm tauri:build"
+    "build": "cd apps/desktop && pnpm tauri:build",
+    "release": "pnpm build && bash scripts/build-dmg.sh"
   }
 }
