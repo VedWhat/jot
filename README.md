@@ -14,6 +14,13 @@
 
 ## Install
 
+### Download (easiest)
+
+1. Grab `Jot-x.x.x.dmg` from [Releases](../../releases/latest)
+2. Open the DMG, drag **Jot** into Applications
+3. First launch: macOS will block it — go to **System Settings → Privacy & Security → Open Anyway**
+4. Jot appears in your menu bar. Done.
+
 ### Build from source
 
 Requirements: [Rust](https://rustup.rs) · [Node.js 20+](https://nodejs.org) · [pnpm](https://pnpm.io)
@@ -22,8 +29,11 @@ Requirements: [Rust](https://rustup.rs) · [Node.js 20+](https://nodejs.org) · 
 git clone https://github.com/vedchitnis/jot
 cd jot
 pnpm install
-pnpm build          # produces apps/desktop/src-tauri/target/release/bundle/macos/Jot.app
+pnpm build          # builds the app
+bash scripts/build-dmg.sh   # packages release/Jot-x.x.x.dmg
 ```
+
+Or `pnpm release` to do both in one shot.
 
 ---
 

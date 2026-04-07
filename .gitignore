@@ -51,3 +51,5 @@ yarn-error.log*
 
 
 .internal_*
+# Release artifacts
+release/
