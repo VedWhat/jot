@@ -16,7 +16,7 @@
 
 ### Download (easiest)
 
-1. Grab `Jot-x.x.x.dmg` from [Releases](../../releases/latest)
+1. Grab `Jot-0.1.0.dmg` from [Releases](../../releases/latest)
 2. Open the DMG, drag **Jot** into Applications
 3. First launch: macOS will block it — go to **System Settings → Privacy & Security → Open Anyway**
 4. Jot appears in your menu bar. Done.
