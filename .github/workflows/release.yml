@@ -1,6 +1,6 @@
 name: Release
 
-# Push to main fires on every commit including docs/typos — too noisy for releases.
+# Push to main fires on every commit — too noisy for releases.
 # Instead: push a version tag  `git tag v0.2.0 && git push origin v0.2.0`
 # or trigger manually from the Actions tab.
 
@@ -25,15 +25,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
 
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Cache Cargo
-        uses: actions/cache@v4
+      # Reads pnpm version from packageManager field in package.json
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -41,6 +42,13 @@ jobs:
             apps/desktop/src-tauri/target
           key: macos-cargo-${{ hashFiles('apps/desktop/src-tauri/Cargo.lock') }}
           restore-keys: macos-cargo-
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build
+        run: pnpm tauri:build
+        working-directory: apps/desktop
 
       - name: Resolve tag and release name
         id: meta
@@ -53,14 +61,14 @@ jobs:
             echo "name=Jot ${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Build and release
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create release
+        uses: softprops/action-gh-release@v2
         with:
-          projectPath: apps/desktop
-          tauriScript: pnpm tauri:build
-          tagName: ${{ steps.meta.outputs.tag }}
-          releaseName: ${{ steps.meta.outputs.name }}
-          releaseDraft: false
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.name }}
+          draft: false
           prerelease: false
+          fail_on_unmatched_files: false
+          files: |
+            apps/desktop/src-tauri/target/release/bundle/dmg/*.dmg
+            apps/desktop/src-tauri/target/release/bundle/macos/*.app.tar.gz
