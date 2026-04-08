@@ -71,6 +71,11 @@ interface JotStore {
   saveObsidianSettings: (settings: ObsidianSettings) => Promise<void>;
   syncWithObsidian: () => Promise<void>;
 
+  // Enrich
+  enrichPrompt: string;
+  loadEnrichPrompt: () => Promise<void>;
+  saveEnrichPrompt: (prompt: string) => Promise<void>;
+
   // Secrets sync
   syncPassphrase: string;
   loadSyncPassphrase: () => Promise<void>;
@@ -202,6 +207,10 @@ export const useJotStore = create<JotStore>((set, get) => ({
       set({ isSyncingObsidian: false });
     }
   },
+
+  enrichPrompt: '',
+  loadEnrichPrompt: async () => set({ enrichPrompt: (await getSecret('enrich_prompt')) ?? '' }),
+  saveEnrichPrompt: async (prompt) => { await setSecret('enrich_prompt', prompt); set({ enrichPrompt: prompt }); },
 
   syncPassphrase: '',
   loadSyncPassphrase: async () => set({ syncPassphrase: (await getSecret('sync_passphrase')) ?? '' }),

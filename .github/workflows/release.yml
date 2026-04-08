@@ -1,0 +1,78 @@
+name: Release
+
+# Push to main fires on every commit including docs/typos — too noisy for releases.
+# Instead: push a version tag  `git tag v0.2.0 && git push origin v0.2.0`
+# or trigger manually from the Actions tab.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g. 0.2.0 — no "v" prefix)'
+        required: true
+        type: string
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            apps/desktop/src-tauri/target
+          key: macos-cargo-${{ hashFiles('apps/desktop/src-tauri/Cargo.lock') }}
+          restore-keys: macos-cargo-
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build Tauri app
+        run: pnpm tauri build
+        working-directory: apps/desktop
+
+      - name: Resolve tag and release name
+        id: meta
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=v${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+            echo "name=Jot v${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            TAG="${GITHUB_REF_NAME}"
+            echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+            echo "name=Jot $TAG" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.name }}
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: false
+          files: |
+            apps/desktop/src-tauri/target/release/bundle/dmg/*.dmg
+            apps/desktop/src-tauri/target/release/bundle/macos/*.app.tar.gz

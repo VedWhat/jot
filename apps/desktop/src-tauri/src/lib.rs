@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use tauri::{
     AppHandle, Manager,
+    menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{TrayIconBuilder, TrayIconEvent, MouseButton, MouseButtonState},
     WindowEvent,
 };
@@ -155,10 +156,22 @@ pub fn run() {
                 Shortcut::new(Some(Modifiers::META | Modifiers::SHIFT), Code::KeyJ)
             )?;
 
+            let open_item = MenuItem::with_id(app, "open", "Open Jot", true, None::<&str>)?;
+            let sep = PredefinedMenuItem::separator(app)?;
+            let quit_item = MenuItem::with_id(app, "quit", "Quit Jot", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&open_item, &sep, &quit_item])?;
+
             TrayIconBuilder::new()
                 .icon(load_tray_icon())
                 .icon_as_template(true)
                 .tooltip("Jot — ⌘⇧J")
+                .menu(&menu)
+                .show_menu_on_left_click(false)
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "open" => toggle_window(app),
+                    "quit" => app.exit(0),
+                    _ => {}
+                })
                 .on_tray_icon_event(|tray, event| {
                     tauri_plugin_positioner::on_tray_event(tray.app_handle(), &event);
                     if let TrayIconEvent::Click {
