@@ -1,6 +1,6 @@
 [package]
 name = "jot"
-version = "0.1.0"
+version = "0.1.2"
 description = "Jot — voice-to-idea capture"
 authors = ["Ved"]
 edition = "2021"
