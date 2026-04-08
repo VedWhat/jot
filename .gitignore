@@ -6,8 +6,6 @@ node_modules/
 # Expo
 .expo/
 dist/
-C*
-!complete-logo.png
 web-build/
 expo-env.d.ts
 

@@ -5,7 +5,7 @@ import { GalleryView } from './components/GalleryView';
 import { SettingsPanel } from './components/SettingsPanel';
 
 export default function App() {
-  const { view, loadJots, loadApiKeys, loadGithubSettings, loadObsidianSettings, loadSyncPassphrase } = useJotStore();
+  const { view, loadJots, loadApiKeys, loadGithubSettings, loadObsidianSettings, loadSyncPassphrase, loadEnrichPrompt } = useJotStore();
 
   useEffect(() => {
     Promise.all([
@@ -14,6 +14,7 @@ export default function App() {
       loadGithubSettings(),
       loadObsidianSettings(),
       loadSyncPassphrase(),
+      loadEnrichPrompt(),
     ]).catch(console.error);
   }, []);
 
