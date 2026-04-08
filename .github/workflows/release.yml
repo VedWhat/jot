@@ -32,8 +32,6 @@ jobs:
         with:
           node-version: '20'
 
-      - uses: pnpm/action-setup@v4
-
       - name: Cache Cargo
         uses: actions/cache@v4
         with:
@@ -44,13 +42,6 @@ jobs:
           key: macos-cargo-${{ hashFiles('apps/desktop/src-tauri/Cargo.lock') }}
           restore-keys: macos-cargo-
 
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Build Tauri app
-        run: pnpm tauri build
-        working-directory: apps/desktop
-
       - name: Resolve tag and release name
         id: meta
         run: |
@@ -58,19 +49,17 @@ jobs:
             echo "tag=v${{ inputs.version }}" >> "$GITHUB_OUTPUT"
             echo "name=Jot v${{ inputs.version }}" >> "$GITHUB_OUTPUT"
           else
-            TAG="${GITHUB_REF_NAME}"
-            echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-            echo "name=Jot $TAG" >> "$GITHUB_OUTPUT"
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+            echo "name=Jot ${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+      - name: Build and release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.meta.outputs.tag }}
-          name: ${{ steps.meta.outputs.name }}
-          draft: false
+          projectPath: apps/desktop
+          tagName: ${{ steps.meta.outputs.tag }}
+          releaseName: ${{ steps.meta.outputs.name }}
+          releaseDraft: false
           prerelease: false
-          fail_on_unmatched_files: false
-          files: |
-            apps/desktop/src-tauri/target/release/bundle/dmg/*.dmg
-            apps/desktop/src-tauri/target/release/bundle/macos/*.app.tar.gz
