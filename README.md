@@ -53,17 +53,16 @@ Or `pnpm release` to do both in one shot.
 
 ## Configuration
 
-Open ⚙ in the top-left corner to configure. Settings are saved to `~/.config/jot/.env`.
+Open ⚙ in the gallery to configure. Settings are saved to `~/.config/jot/.env`.
 
 You can also set any of these in your shell and they'll take precedence over the settings panel:
 
 | Variable | Purpose |
 |---|---|
-| `JOT_OPENAI_API_KEY` | Whisper transcription (`sk-...`) |
+| `JOT_OPENAI_API_KEY` | Whisper transcription + Enrich (`sk-...`) |
 | `JOT_ELEVENLABS_API_KEY` | ElevenLabs transcription |
-| `JOT_GITHUB_PAT` | GitHub sync — fine-grained PAT with Contents: read+write |
-| `JOT_GITHUB_REPO` | GitHub sync repo (`owner/repo`, must be private) |
-| `JOT_OBSIDIAN_VAULT_PATH` | Obsidian export path (e.g. `/Users/you/Documents/MyVault`) |
+| `JOT_OBSIDIAN_VAULT_PATH` | Obsidian vault path (e.g. `/Users/you/Documents/MyVault`) |
+| `JOT_OBSIDIAN_GIT_REMOTE` | Git remote URL for cross-machine sync (e.g. `git@github.com:you/jots.git`) |
 
 ---
 
@@ -79,24 +78,65 @@ Switch engines using the pills in the top-right of the record screen.
 
 ---
 
+## Enrich
+
+After saving a jot, expand it in the gallery and tap **✦ enrich**. Jot sends the transcript to `gpt-4o-mini` which classifies it and rewrites it into a structured, actionable note:
+
+| Category | What you get |
+|---|---|
+| **idea** | Core insight · Why it matters · Angles to explore · Next steps |
+| **task** | Goal with definition of done · Checkbox sub-tasks · Blockers |
+| **remember** | Fact stated plainly · Why it matters · Related context |
+| **other** | Grammar-fixed, readable transcript |
+
+You can edit the enriched content before saving, or dismiss it to keep the original. The enrich prompt is fully customisable in ⚙ Settings → Enrich.
+
+Requires `JOT_OPENAI_API_KEY`.
+
+---
+
 ## Sync
 
-### GitHub
-Jots are pushed as markdown files to a private GitHub repo. Bidirectional — pulling brings in jots saved from other machines.
+Jots sync to your Obsidian vault as markdown files with YAML frontmatter. The vault's `Jots/` folder is a git repo — so you can push to any remote for cross-machine access without any tokens stored in the app.
 
-Setup: add your PAT + repo in ⚙ Settings → GitHub sync.
+**File layout:**
 
-### Obsidian
-Exports all jots to `{vault}/Jots/*.md` as markdown with YAML frontmatter. One-way export.
+```
+{vault}/Jots/
+  Inbox/       ← unenriched jots
+  Ideas/
+  Tasks/
+  Remember/
+  Other/
+```
 
-Setup: add your vault path in ⚙ Settings → Obsidian.
+Each file is named `{slug}.md` and includes frontmatter:
+
+```yaml
+---
+jot-id: <uuid>
+title: "My idea about X"
+created: 2026-04-11T14:30:00.000Z
+engine: webspeech
+tags: [jot, idea]
+category: idea
+---
+```
+
+**Setup:**
+
+1. In ⚙ Settings → Sync, set your **Vault path**
+2. Optionally add a **Git remote** (e.g. `git@github.com:you/jots-private.git`) — Jot will run `git init`, set the remote, commit, and push automatically on every sync using your system's existing git credentials (SSH key or macOS Keychain)
+3. Enable **Auto-sync on save** to sync silently after every jot
+
+If no git remote is set, jots are still committed locally — useful for local history even without a remote.
 
 ---
 
 ## Privacy
 
 - Everything stays local by default (localStorage in the app's WebView data)
-- GitHub sync only uploads to **your own private repo**
+- Obsidian sync writes to your own vault; git pushes to your own private repo
 - API keys are stored in `~/.config/jot/.env` — never sent anywhere except the respective API
 - No telemetry, no analytics, no accounts
 

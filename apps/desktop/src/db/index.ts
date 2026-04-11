@@ -10,7 +10,7 @@ export interface Jot {
   created_at: string;
   uuid: string;
   updated_at: string;
-  github_sha: string | null;
+  category: string | null;
 }
 
 const STORAGE_KEY = 'jot:jots';
@@ -23,7 +23,7 @@ function readAll(): Jot[] {
       ...j,
       uuid: j.uuid ?? generateUUID(),
       updated_at: j.updated_at ?? j.created_at,
-      github_sha: j.github_sha ?? null,
+      category: j.category ?? null,
     }));
   } catch {
     return [];
@@ -64,7 +64,7 @@ export async function saveJot(params: {
     created_at: now,
     uuid: generateUUID(),
     updated_at: now,
-    github_sha: null,
+    category: null,
   };
   jots.unshift(jot);
   writeAll(jots);
@@ -75,37 +75,16 @@ export async function deleteJot(id: number): Promise<void> {
   writeAll(readAll().filter((j) => j.id !== id));
 }
 
-export async function updateJot(id: number, title: string, transcript: string): Promise<void> {
+export async function updateJot(id: number, title: string, transcript: string, category?: string | null): Promise<void> {
   const jots = readAll();
   const idx = jots.findIndex((j) => j.id === id);
   if (idx === -1) return;
-  jots[idx] = { ...jots[idx], title, transcript, updated_at: new Date().toISOString(), github_sha: null };
-  writeAll(jots);
-}
-
-export async function updateJotSha(id: number, sha: string): Promise<void> {
-  const jots = readAll();
-  const idx = jots.findIndex((j) => j.id === id);
-  if (idx === -1) return;
-  jots[idx] = { ...jots[idx], github_sha: sha };
-  writeAll(jots);
-}
-
-export async function upsertJot(params: {
-  title: string;
-  transcript: string;
-  engine: string;
-  duration_seconds: number | null;
-  audio_path: string | null;
-  created_at: string;
-  uuid: string;
-  updated_at: string;
-  github_sha: string;
-}): Promise<void> {
-  const jots = readAll();
-  if (jots.some((j) => j.uuid === params.uuid)) return;
-  const id = nextId();
-  jots.push({ id, ...params });
-  jots.sort((a, b) => (a.created_at > b.created_at ? -1 : 1));
+  jots[idx] = {
+    ...jots[idx],
+    title,
+    transcript,
+    updated_at: new Date().toISOString(),
+    ...(category !== undefined ? { category } : {}),
+  };
   writeAll(jots);
 }

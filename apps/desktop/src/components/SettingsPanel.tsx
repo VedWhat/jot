@@ -3,6 +3,33 @@ import { useJotStore } from '../store';
 
 type Tab = 'keys' | 'sync' | 'enrich';
 
+const DEFAULT_ENRICH_PROMPT = `Classify this voice note and turn it into something actionable.
+
+Categories: idea | task | remember | other
+
+Structure your response based on the category:
+
+IDEA:
+**Core insight:** One sentence — what is this idea, specifically?
+**Why it matters:** What problem does it solve or opportunity does it create?
+**Angles to explore:** 3–5 specific questions worth investigating
+**Next steps:** 2–4 actions (verb-first, specific enough to do today)
+
+TASK:
+**Goal:** What done looks like
+**Steps:**
+- [ ] Step 1 (action verb + specific outcome)
+- [ ] Step 2
+**Blockers:** Anything that needs to happen first
+
+REMEMBER:
+**What:** The fact, reference, or thing to recall
+**Why:** When this will be useful
+**Context:** Related ideas or background
+
+OTHER:
+Rewrite cleanly — fix grammar, improve clarity, preserve all meaning.`;
+
 function Input({
   label, value, onChange, placeholder, type = 'text', hint,
 }: {
@@ -11,16 +38,22 @@ function Input({
 }) {
   return (
     <div>
-      <p className="text-[11px] text-stone-400 mb-1">{label}</p>
+      <p className="text-[11px] font-semibold text-stone-700 mb-1">{label}</p>
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full text-[13px] text-stone-700 border border-stone-200 rounded-lg px-3 py-2 bg-white outline-none focus:border-stone-400 placeholder:text-stone-200 transition-colors"
+        className="w-full text-[13px] text-stone-900 border border-stone-300 rounded-lg px-3 py-2 bg-white outline-none focus:border-stone-500 placeholder:text-stone-300 transition-colors"
       />
-      {hint && <p className="text-[10px] text-stone-300 mt-1">{hint}</p>}
+      {hint && <p className="text-[10px] text-stone-500 mt-1">{hint}</p>}
     </div>
+  );
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="font-mono text-[9px] font-bold text-stone-600 uppercase tracking-widest">{children}</p>
   );
 }
 
@@ -31,10 +64,32 @@ function ActionBtn({
     <button
       onClick={onClick}
       disabled={disabled}
-      className="px-4 py-1.5 rounded-lg border border-stone-200 text-[12px] text-stone-600 hover:border-stone-300 hover:bg-stone-50 transition-colors disabled:opacity-30"
+      className="px-4 py-1.5 rounded-lg border border-stone-300 text-[12px] text-stone-700 hover:border-stone-400 hover:bg-stone-100 transition-colors disabled:opacity-30"
     >
       {children}
     </button>
+  );
+}
+
+function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+  return (
+    <div className="flex items-center justify-between select-none">
+      <span className="text-[13px] text-stone-700">{label}</span>
+      <button
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={[
+          'relative flex-shrink-0 w-9 h-5 rounded-full transition-colors duration-200',
+          checked ? 'bg-stone-700' : 'bg-stone-200',
+        ].join(' ')}
+      >
+        <span className={[
+          'absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200',
+          checked ? 'translate-x-4' : 'translate-x-0',
+        ].join(' ')} />
+      </button>
+    </div>
   );
 }
 
@@ -42,18 +97,16 @@ export function SettingsPanel() {
   const {
     settingsOpen, setSettingsOpen,
     apiKeys, saveApiKey,
-    github, saveGithubSettings, githubError,
     obsidian, saveObsidianSettings, syncWithObsidian, isSyncingObsidian, obsidianSyncError, obsidianSyncSuccess,
-    syncWithGitHub, isSyncing, syncError,
     enrichPrompt, saveEnrichPrompt,
+    autoSync, saveAutoSync,
   } = useJotStore();
 
   const [activeTab, setActiveTab] = useState<Tab>('keys');
   const [openaiKey, setOpenaiKey] = useState('');
   const [elevenKey, setElevenKey] = useState('');
-  const [githubPat, setGithubPat] = useState('');
-  const [githubRepo, setGithubRepo] = useState('');
   const [vaultPath, setVaultPath] = useState('');
+  const [gitRemote, setGitRemote] = useState('');
   const [enrichDraft, setEnrichDraft] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveOk, setSaveOk] = useState(false);
@@ -62,9 +115,8 @@ export function SettingsPanel() {
     if (!settingsOpen) return;
     setOpenaiKey(apiKeys.openai);
     setElevenKey(apiKeys.elevenlabs);
-    setGithubPat(github.pat);
-    setGithubRepo(github.repo);
     setVaultPath(obsidian.vaultPath);
+    setGitRemote(obsidian.gitRemote);
     setEnrichDraft(enrichPrompt);
   }, [settingsOpen]);
 
@@ -76,12 +128,9 @@ export function SettingsPanel() {
       await Promise.all([
         saveApiKey('openai', openaiKey),
         saveApiKey('elevenlabs', elevenKey),
-        saveObsidianSettings({ vaultPath }),
+        saveObsidianSettings({ vaultPath, gitRemote }),
         saveEnrichPrompt(enrichDraft),
       ]);
-      if (githubPat !== github.pat || githubRepo !== github.repo) {
-        await saveGithubSettings({ pat: githubPat, repo: githubRepo });
-      }
       setSaveOk(true);
       setTimeout(() => setSaveOk(false), 2000);
     } catch { /* errors shown inline */ }
@@ -92,26 +141,26 @@ export function SettingsPanel() {
     <div className="absolute inset-0 bg-stone-50 z-50 flex flex-col">
       {/* Header */}
       <div className="drag-region flex items-center justify-between px-5 py-3.5">
-        <span className="text-[14px] font-semibold text-stone-700">settings</span>
+        <span className="text-[14px] font-bold text-stone-900">settings</span>
         <button
           onClick={() => setSettingsOpen(false)}
-          className="no-drag w-6 h-6 flex items-center justify-center rounded-md text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition-colors text-lg leading-none"
+          className="no-drag w-6 h-6 flex items-center justify-center rounded-md text-stone-500 hover:text-stone-800 hover:bg-stone-100 transition-colors text-lg leading-none"
         >
           ×
         </button>
       </div>
 
       {/* Tab bar */}
-      <div className="flex border-b border-stone-100 px-5">
+      <div className="flex border-b border-stone-200 px-5">
         {(['keys', 'sync', 'enrich'] as Tab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={[
-              'font-mono text-[10px] uppercase tracking-widest py-2.5 pr-6 border-b-[1.5px] -mb-px transition-colors',
+              'font-mono text-[10px] font-bold uppercase tracking-widest py-2.5 mr-6 border-b-2 -mb-px transition-colors',
               activeTab === tab
-                ? 'text-stone-700 border-stone-700'
-                : 'text-stone-300 border-transparent hover:text-stone-400',
+                ? 'text-stone-900 border-stone-900'
+                : 'text-stone-400 border-transparent hover:text-stone-700',
             ].join(' ')}
           >
             {tab}
@@ -145,39 +194,34 @@ export function SettingsPanel() {
         {/* ── Sync tab ── */}
         {activeTab === 'sync' && (
           <>
-            <p className="font-mono text-[9px] text-stone-300 uppercase tracking-widest">github</p>
-            <Input
-              label="Personal access token"
-              value={githubPat}
-              onChange={setGithubPat}
-              placeholder="ghp_..."
-              type="password"
+            <Toggle
+              label="Auto-sync on save"
+              checked={autoSync}
+              onChange={saveAutoSync}
             />
-            <Input
-              label="Repo (must be private)"
-              value={githubRepo}
-              onChange={setGithubRepo}
-              placeholder="you/jots-backup"
-            />
-            {(githubError || syncError) && (
-              <p className="font-mono text-[10px] text-accent">{githubError || syncError}</p>
-            )}
-            <ActionBtn onClick={syncWithGitHub} disabled={isSyncing || !github.pat || !github.repo}>
-              {isSyncing ? 'syncing...' : '↑↓  sync now'}
-            </ActionBtn>
+            <p className="text-[11px] text-stone-500 leading-relaxed">
+              When on, every saved or deleted jot automatically exports to your Obsidian vault.
+            </p>
 
             <div className="pt-3 border-t border-stone-100">
-              <p className="font-mono text-[9px] text-stone-300 uppercase tracking-widest mb-4">obsidian</p>
-              <Input
-                label="Vault path"
-                value={vaultPath}
-                onChange={setVaultPath}
-                placeholder="/Users/you/Documents/MyVault"
-                hint="Exports to {vault}/Jots/ as markdown"
-              />
+              <SectionLabel>obsidian</SectionLabel>
             </div>
+            <Input
+              label="Vault path"
+              value={vaultPath}
+              onChange={setVaultPath}
+              placeholder="/Users/you/Documents/MyVault"
+              hint="Exports to {vault}/Jots/{category}/{slug}.md"
+            />
+            <Input
+              label="Git remote (optional)"
+              value={gitRemote}
+              onChange={setGitRemote}
+              placeholder="git@github.com:you/jots-private.git"
+              hint="If set, jots are committed and pushed here on every sync using your system's git credentials."
+            />
             {obsidianSyncError && <p className="font-mono text-[10px] text-accent">{obsidianSyncError}</p>}
-            {obsidianSyncSuccess && <p className="font-mono text-[10px] text-emerald-500">{obsidianSyncSuccess}</p>}
+            {obsidianSyncSuccess && <p className="font-mono text-[10px] text-emerald-600">{obsidianSyncSuccess}</p>}
             <ActionBtn onClick={syncWithObsidian} disabled={isSyncingObsidian || !obsidian.vaultPath}>
               {isSyncingObsidian ? 'exporting...' : '→  export to obsidian'}
             </ActionBtn>
@@ -187,31 +231,42 @@ export function SettingsPanel() {
         {/* ── Enrich tab ── */}
         {activeTab === 'enrich' && (
           <>
-            <p className="text-[12px] text-stone-400 leading-relaxed">
-              When you enrich a jot, this prompt guides the AI to transform your transcript. Uses <span className="font-mono">gpt-4o-mini</span> with your OpenAI key.
+            <p className="text-[12px] text-stone-600 leading-relaxed">
+              When you enrich a jot, this prompt guides the AI to classify and develop your transcript. Uses <span className="font-mono">gpt-4o-mini</span> with your OpenAI key.
+            </p>
+            <p className="text-[11px] text-stone-500 leading-relaxed">
+              Categories: <span className="font-mono">idea</span> · <span className="font-mono">task</span> · <span className="font-mono">remember</span> · <span className="font-mono">other</span>. Obsidian sync routes each to its own subfolder.
             </p>
             <div>
-              <p className="text-[11px] text-stone-400 mb-1">Prompt</p>
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-[11px] font-medium text-stone-600">Prompt</p>
+                <button
+                  onClick={() => setEnrichDraft(DEFAULT_ENRICH_PROMPT)}
+                  className="font-mono text-[9px] text-stone-500 hover:text-stone-700 uppercase tracking-widest"
+                >
+                  insert default
+                </button>
+              </div>
               <textarea
                 value={enrichDraft}
                 onChange={(e) => setEnrichDraft(e.target.value)}
-                placeholder="e.g. Format this as clear bullet points. Extract key action items and insights."
-                rows={6}
-                className="w-full text-[13px] text-stone-700 border border-stone-200 rounded-lg px-3 py-2.5 bg-white outline-none focus:border-stone-400 placeholder:text-stone-200 transition-colors font-sans leading-relaxed"
+                placeholder="Click 'insert default' above to get started..."
+                rows={10}
+                className="w-full text-[12px] text-stone-800 border border-stone-200 rounded-lg px-3 py-2.5 bg-white outline-none focus:border-stone-400 placeholder:text-stone-300 transition-colors font-mono leading-relaxed"
               />
             </div>
             {!apiKeys.openai && (
-              <p className="font-mono text-[10px] text-stone-300">⚠ Add your OpenAI key in the keys tab first</p>
+              <p className="font-mono text-[10px] text-stone-500">⚠ Add your OpenAI key in the keys tab first</p>
             )}
           </>
         )}
       </div>
 
       {/* Footer */}
-      <div className="px-5 py-4 border-t border-stone-100 flex items-center justify-between">
+      <div className="px-5 py-4 border-t border-stone-200 flex items-center justify-between">
         <span className={[
           'font-mono text-[10px] transition-opacity',
-          saveOk ? 'text-emerald-500 opacity-100' : 'opacity-0',
+          saveOk ? 'text-emerald-600 opacity-100' : 'opacity-0',
         ].join(' ')}>
           saved
         </span>

@@ -115,6 +115,40 @@ fn write_file(path: String, content: String) -> Result<(), String> {
     std::fs::write(&path, content).map_err(|e| e.to_string())
 }
 
+// ── Git command (Obsidian vault versioning) ──────────────────────────────────
+
+#[tauri::command]
+fn run_git(dir: String, args: Vec<String>) -> Result<String, String> {
+    let output = std::process::Command::new("git")
+        .current_dir(&dir)
+        .args(&args)
+        .output()
+        .map_err(|e| format!("git not found: {}", e))?;
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    if output.status.success() {
+        Ok(stdout)
+    } else {
+        Err(if stderr.trim().is_empty() { stdout } else { stderr })
+    }
+}
+
+// ── Compact / widget mode ────────────────────────────────────────────────────
+
+#[tauri::command]
+fn set_compact_mode(app: AppHandle, compact: bool) -> Result<(), String> {
+    use tauri::{LogicalSize, Size};
+    let window = app.get_webview_window("main").ok_or("window not found")?;
+    if compact {
+        window.set_size(Size::Logical(LogicalSize { width: 220.0_f64, height: 52.0_f64 }))
+            .map_err(|e| e.to_string())?;
+    } else {
+        window.set_size(Size::Logical(LogicalSize { width: 380.0_f64, height: 600.0_f64 }))
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 // ── Window toggle ────────────────────────────────────────────────────────────
 
 fn toggle_window(app: &AppHandle) {
@@ -196,6 +230,8 @@ pub fn run() {
             set_secret,
             delete_secret,
             write_file,
+            run_git,
+            set_compact_mode,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Jot");

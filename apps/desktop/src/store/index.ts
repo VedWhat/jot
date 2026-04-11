@@ -5,13 +5,11 @@ import {
   saveJot,
   deleteJot,
   updateJot,
-  updateJotSha,
-  upsertJot,
 } from '../db';
 import { generateTitle } from '../utils/title';
 import { getSecret, setSecret } from '../storage/secrets';
-import { syncJots, assertRepoIsPrivate, pushSecrets, pullSecrets } from '../sync/github';
 import { syncToObsidian } from '../sync/obsidian';
+import { generateUUID } from '../utils/uuid';
 
 export type View = 'record' | 'gallery';
 export type EngineName = 'webspeech' | 'whisper' | 'elevenlabs';
@@ -21,28 +19,32 @@ export interface ApiKeys {
   elevenlabs: string;
 }
 
-export interface GitHubSettings {
-  pat: string;
-  repo: string;
-}
-
 export interface ObsidianSettings {
   vaultPath: string;
+  gitRemote: string;
+}
+
+export interface Toast {
+  id: string;
+  type: 'error' | 'success';
+  message: string;
 }
 
 interface JotStore {
   // Navigation
   view: View;
   settingsOpen: boolean;
+  isCompact: boolean;
   setView: (v: View) => void;
   setSettingsOpen: (v: boolean) => void;
+  setIsCompact: (v: boolean) => void;
 
   // Jots
   jots: Jot[];
   loadJots: () => Promise<void>;
-  addJot: (params: { transcript: string; engine: EngineName; duration_seconds: number }) => Promise<void>;
+  addJot: (params: { transcript: string; engine: EngineName; duration_seconds: number }) => Promise<number>;
   removeJot: (id: number) => Promise<void>;
-  editJot: (id: number, transcript: string) => Promise<void>;
+  editJot: (id: number, transcript: string, category?: string | null, customTitle?: string) => Promise<void>;
 
   // Engine
   engine: EngineName;
@@ -53,15 +55,6 @@ interface JotStore {
   loadApiKeys: () => Promise<void>;
   saveApiKey: (service: keyof ApiKeys, value: string) => Promise<void>;
 
-  // GitHub sync
-  github: GitHubSettings;
-  githubError: string | null;
-  isSyncing: boolean;
-  syncError: string | null;
-  loadGithubSettings: () => Promise<void>;
-  saveGithubSettings: (settings: GitHubSettings) => Promise<void>;
-  syncWithGitHub: () => Promise<void>;
-
   // Obsidian sync
   obsidian: ObsidianSettings;
   isSyncingObsidian: boolean;
@@ -71,33 +64,35 @@ interface JotStore {
   saveObsidianSettings: (settings: ObsidianSettings) => Promise<void>;
   syncWithObsidian: () => Promise<void>;
 
+  // Auto-sync
+  autoSync: boolean;
+  loadAutoSync: () => Promise<void>;
+  saveAutoSync: (v: boolean) => Promise<void>;
+  _autoSyncIfEnabled: () => void;
+
   // Enrich
   enrichPrompt: string;
   loadEnrichPrompt: () => Promise<void>;
   saveEnrichPrompt: (prompt: string) => Promise<void>;
 
-  // Secrets sync
-  syncPassphrase: string;
-  loadSyncPassphrase: () => Promise<void>;
-  saveSyncPassphrase: (p: string) => Promise<void>;
-  isPushingSecrets: boolean;
-  isPullingSecrets: boolean;
-  secretsSyncError: string | null;
-  secretsSyncSuccess: string | null;
-  pushSecretsToGitHub: () => Promise<void>;
-  pullSecretsFromGitHub: (passphrase: string) => Promise<void>;
+  // Toasts
+  toasts: Toast[];
+  addToast: (type: Toast['type'], message: string) => void;
+  removeToast: (id: string) => void;
 
   // Recording state
   isRecording: boolean;
   isStopped: boolean;
   isTranscribing: boolean;
   transcript: string;
+  transcriptionError: string | null;
   elapsedSeconds: number;
   silenceProgress: number;
   setIsRecording: (v: boolean) => void;
   setIsStopped: (v: boolean) => void;
   setIsTranscribing: (v: boolean) => void;
   setTranscript: (t: string) => void;
+  setTranscriptionError: (e: string | null) => void;
   setElapsedSeconds: (s: number) => void;
   setSilenceProgress: (p: number) => void;
   resetRecordingState: () => void;
@@ -106,23 +101,30 @@ interface JotStore {
 export const useJotStore = create<JotStore>((set, get) => ({
   view: 'record',
   settingsOpen: false,
+  isCompact: false,
   setView: (v) => set({ view: v }),
   setSettingsOpen: (v) => set({ settingsOpen: v }),
+  setIsCompact: (v) => set({ isCompact: v }),
 
   jots: [],
   loadJots: async () => set({ jots: await getAllJots() }),
   addJot: async ({ transcript, engine, duration_seconds }) => {
     const title = generateTitle(transcript);
-    await saveJot({ title, transcript, engine, duration_seconds });
+    const id = await saveJot({ title, transcript, engine, duration_seconds });
     set({ jots: await getAllJots() });
+    get()._autoSyncIfEnabled();
+    return id;
   },
   removeJot: async (id) => {
     await deleteJot(id);
     set((s) => ({ jots: s.jots.filter((j) => j.id !== id) }));
+    get()._autoSyncIfEnabled();
   },
-  editJot: async (id, transcript) => {
-    await updateJot(id, generateTitle(transcript), transcript);
+  editJot: async (id, transcript, category?, customTitle?) => {
+    const title = customTitle ?? generateTitle(transcript);
+    await updateJot(id, title, transcript, category);
     set({ jots: await getAllJots() });
+    get()._autoSyncIfEnabled();
   },
 
   engine: 'webspeech',
@@ -142,134 +144,85 @@ export const useJotStore = create<JotStore>((set, get) => ({
     set((s) => ({ apiKeys: { ...s.apiKeys, [service]: value } }));
   },
 
-  github: { pat: '', repo: '' },
-  githubError: null,
-  isSyncing: false,
-  syncError: null,
-  loadGithubSettings: async () => {
-    const [pat, repo] = await Promise.all([getSecret('github_pat'), getSecret('github_repo')]);
-    set({ github: { pat: pat ?? '', repo: repo ?? '' } });
-  },
-  saveGithubSettings: async ({ pat, repo }) => {
-    const p = pat.trim(), r = repo.trim();
-    if (p && r) {
-      try { await assertRepoIsPrivate(p, r); }
-      catch (e) { set({ githubError: e instanceof Error ? e.message : 'Repo check failed' }); throw e; }
-    }
-    await Promise.all([setSecret('github_pat', p), setSecret('github_repo', r)]);
-    set({ github: { pat: p, repo: r }, githubError: null });
-  },
-  syncWithGitHub: async () => {
-    const { github, jots } = get();
-    if (!github.pat || !github.repo) { set({ syncError: 'GitHub PAT and repo required' }); return; }
-    set({ isSyncing: true, syncError: null });
-    try {
-      await syncJots(
-        jots, github.pat, github.repo,
-        async (id, sha) => { await updateJotSha(id, sha); },
-        async (params) => { await upsertJot(params); },
-      );
-      set({ jots: await getAllJots() });
-    } catch (e) {
-      set({ syncError: e instanceof Error ? e.message : 'Sync failed' });
-    } finally {
-      set({ isSyncing: false });
-    }
-  },
-
-  obsidian: { vaultPath: '' },
+  obsidian: { vaultPath: '', gitRemote: '' },
   isSyncingObsidian: false,
   obsidianSyncError: null,
   obsidianSyncSuccess: null,
   loadObsidianSettings: async () => {
-    const vaultPath = await getSecret('obsidian_vault_path');
-    set({ obsidian: { vaultPath: vaultPath ?? '' } });
+    const [vaultPath, gitRemote] = await Promise.all([
+      getSecret('obsidian_vault_path'),
+      getSecret('obsidian_git_remote'),
+    ]);
+    set({ obsidian: { vaultPath: vaultPath ?? '', gitRemote: gitRemote ?? '' } });
   },
-  saveObsidianSettings: async ({ vaultPath }) => {
-    await setSecret('obsidian_vault_path', vaultPath);
-    set({ obsidian: { vaultPath } });
+  saveObsidianSettings: async ({ vaultPath, gitRemote }) => {
+    await Promise.all([
+      setSecret('obsidian_vault_path', vaultPath),
+      setSecret('obsidian_git_remote', gitRemote),
+    ]);
+    set({ obsidian: { vaultPath, gitRemote } });
   },
   syncWithObsidian: async () => {
     const { obsidian, jots } = get();
     if (!obsidian.vaultPath) { set({ obsidianSyncError: 'Set your Obsidian vault path first' }); return; }
     set({ isSyncingObsidian: true, obsidianSyncError: null, obsidianSyncSuccess: null });
     try {
-      const result = await syncToObsidian(jots, obsidian.vaultPath);
+      const result = await syncToObsidian(jots, obsidian.vaultPath, obsidian.gitRemote || undefined);
       if (result.errors.length > 0) {
-        set({ obsidianSyncError: result.errors.join(', ') });
+        const msg = result.errors.join(', ');
+        set({ obsidianSyncError: msg });
+        get().addToast('error', `Obsidian: ${result.errors[0]}${result.errors.length > 1 ? ` (+${result.errors.length - 1} more)` : ''}`);
       } else {
         set({ obsidianSyncSuccess: `${result.synced} jots exported` });
-        setTimeout(() => set({ obsidianSyncSuccess: null }), 3000);
+        if (get().autoSync) get().addToast('success', `${result.synced} jots synced`);
+      }
+      if (result.gitError) {
+        get().addToast('error', result.gitError);
       }
     } catch (e) {
-      set({ obsidianSyncError: e instanceof Error ? e.message : 'Obsidian sync failed' });
+      const msg = e instanceof Error ? e.message : 'Obsidian sync failed';
+      set({ obsidianSyncError: msg });
+      get().addToast('error', `Obsidian: ${msg}`);
     } finally {
       set({ isSyncingObsidian: false });
     }
+  },
+
+  autoSync: false,
+  loadAutoSync: async () => set({ autoSync: (await getSecret('auto_sync')) === 'true' }),
+  saveAutoSync: async (v) => { await setSecret('auto_sync', v ? 'true' : 'false'); set({ autoSync: v }); },
+  _autoSyncIfEnabled: () => {
+    const { autoSync, obsidian } = get();
+    if (!autoSync || !obsidian.vaultPath) return;
+    get().syncWithObsidian();
   },
 
   enrichPrompt: '',
   loadEnrichPrompt: async () => set({ enrichPrompt: (await getSecret('enrich_prompt')) ?? '' }),
   saveEnrichPrompt: async (prompt) => { await setSecret('enrich_prompt', prompt); set({ enrichPrompt: prompt }); },
 
-  syncPassphrase: '',
-  loadSyncPassphrase: async () => set({ syncPassphrase: (await getSecret('sync_passphrase')) ?? '' }),
-  saveSyncPassphrase: async (p) => { await setSecret('sync_passphrase', p); set({ syncPassphrase: p }); },
-  isPushingSecrets: false,
-  isPullingSecrets: false,
-  secretsSyncError: null,
-  secretsSyncSuccess: null,
-  pushSecretsToGitHub: async () => {
-    const { github, apiKeys, syncPassphrase } = get();
-    if (!github.pat || !github.repo) { set({ secretsSyncError: 'GitHub PAT and repo required' }); return; }
-    if (!syncPassphrase) { set({ secretsSyncError: 'Enter a passphrase first' }); return; }
-    set({ isPushingSecrets: true, secretsSyncError: null, secretsSyncSuccess: null });
-    try {
-      await pushSecrets(github.pat, github.repo, { openai_api_key: apiKeys.openai, elevenlabs_api_key: apiKeys.elevenlabs }, syncPassphrase);
-      set({ secretsSyncSuccess: 'Secrets pushed' });
-      setTimeout(() => set({ secretsSyncSuccess: null }), 3000);
-    } catch (e) {
-      set({ secretsSyncError: e instanceof Error ? e.message : 'Push failed' });
-    } finally {
-      set({ isPushingSecrets: false });
-    }
+  toasts: [],
+  addToast: (type, message) => {
+    const id = generateUUID();
+    set((s) => ({ toasts: [...s.toasts, { id, type, message }] }));
+    setTimeout(() => get().removeToast(id), 4000);
   },
-  pullSecretsFromGitHub: async (passphrase) => {
-    const { github } = get();
-    if (!github.pat || !github.repo) { set({ secretsSyncError: 'GitHub PAT and repo required' }); return; }
-    set({ isPullingSecrets: true, secretsSyncError: null, secretsSyncSuccess: null });
-    try {
-      const secrets = await pullSecrets(github.pat, github.repo, passphrase);
-      await Promise.all([
-        setSecret('openai_api_key', secrets.openai_api_key ?? ''),
-        setSecret('elevenlabs_api_key', secrets.elevenlabs_api_key ?? ''),
-        setSecret('sync_passphrase', passphrase),
-      ]);
-      set({
-        apiKeys: { openai: secrets.openai_api_key ?? '', elevenlabs: secrets.elevenlabs_api_key ?? '' },
-        syncPassphrase: passphrase,
-        secretsSyncSuccess: 'Secrets restored',
-      });
-      setTimeout(() => set({ secretsSyncSuccess: null }), 3000);
-    } catch (e) {
-      set({ secretsSyncError: e instanceof Error ? e.message : 'Pull failed' });
-    } finally {
-      set({ isPullingSecrets: false });
-    }
-  },
+  removeToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
 
   isRecording: false,
   isStopped: false,
   isTranscribing: false,
   transcript: '',
+  transcriptionError: null,
   elapsedSeconds: 0,
   silenceProgress: 0,
   setIsRecording: (v) => set({ isRecording: v }),
   setIsStopped: (v) => set({ isStopped: v }),
   setIsTranscribing: (v) => set({ isTranscribing: v }),
   setTranscript: (t) => set({ transcript: t }),
+  setTranscriptionError: (e) => set({ transcriptionError: e }),
   setElapsedSeconds: (s) => set({ elapsedSeconds: s }),
   setSilenceProgress: (p) => set({ silenceProgress: p }),
   resetRecordingState: () =>
-    set({ isRecording: false, isStopped: false, isTranscribing: false, transcript: '', elapsedSeconds: 0, silenceProgress: 0 }),
+    set({ isRecording: false, isStopped: false, isTranscribing: false, transcript: '', transcriptionError: null, elapsedSeconds: 0, silenceProgress: 0 }),
 }));

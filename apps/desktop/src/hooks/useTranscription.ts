@@ -55,7 +55,7 @@ async function transcribeWithElevenLabs(audio: Blob, apiKey: string): Promise<st
 }
 
 export function useTranscription(onSpeechDetected: () => void, onSilenceStart: () => void) {
-  const { setTranscript, setIsRecording, setIsStopped, setIsTranscribing } = useJotStore();
+  const { setTranscript, setIsRecording, setIsStopped, setIsTranscribing, setTranscriptionError } = useJotStore();
   const finalTranscriptRef = useRef('');
   const hasSpokenRef = useRef(false);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
@@ -126,30 +126,23 @@ export function useTranscription(onSpeechDetected: () => void, onSilenceStart: (
     setIsStopped(false);
   }, [setIsRecording, setIsStopped]);
 
-  const stopApiEngine = useCallback(async () => {
+  // Stops recording and returns the raw blob — caller is responsible for transcription
+  const stopApiGetBlob = useCallback(async (): Promise<Blob> => {
     setIsRecording(false);
-    setIsTranscribing(true);
-    try {
-      const blob = await stopRecording();
-      const { engine, apiKeys } = useJotStore.getState();
-      let text = '';
-      if (engine === 'whisper') {
-        if (!apiKeys.openai) throw new Error('No OpenAI API key — add it in settings.');
-        text = await transcribeWithWhisper(blob, apiKeys.openai);
-      } else {
-        if (!apiKeys.elevenlabs) throw new Error('No ElevenLabs API key — add it in settings.');
-        text = await transcribeWithElevenLabs(blob, apiKeys.elevenlabs);
-      }
-      finalTranscriptRef.current = text;
-      setTranscript(text);
-    } catch (e: any) {
-      console.error('Transcription error:', e);
-      setTranscript(`[error: ${e.message}]`);
-    } finally {
-      setIsTranscribing(false);
-      setIsStopped(true);
+    return stopRecording();
+  }, [setIsRecording]);
+
+  // Transcribes a blob using the current engine + API keys
+  const doTranscribe = useCallback(async (blob: Blob): Promise<string> => {
+    const { engine, apiKeys } = useJotStore.getState();
+    if (engine === 'whisper') {
+      if (!apiKeys.openai) throw new Error('No OpenAI API key — add it in settings.');
+      return transcribeWithWhisper(blob, apiKeys.openai);
+    } else {
+      if (!apiKeys.elevenlabs) throw new Error('No ElevenLabs API key — add it in settings.');
+      return transcribeWithElevenLabs(blob, apiKeys.elevenlabs);
     }
-  }, [setIsRecording, setIsStopped, setIsTranscribing, setTranscript]);
+  }, []);
 
   // ── Public API ────────────────────────────────────────────────────────────
 
@@ -159,9 +152,14 @@ export function useTranscription(onSpeechDetected: () => void, onSilenceStart: (
   }, [startWebSpeech, startApiEngine]);
 
   const stopListening = useCallback(async () => {
-    const { engine } = useJotStore.getState();
-    return engine === 'webspeech' ? stopWebSpeech() : stopApiEngine();
-  }, [stopWebSpeech, stopApiEngine]);
+    stopWebSpeech();
+  }, [stopWebSpeech]);
 
-  return { startListening, stopListening, getFinalTranscript: () => finalTranscriptRef.current };
+  return {
+    startListening,
+    stopListening,
+    getFinalTranscript: () => finalTranscriptRef.current,
+    stopApiGetBlob,
+    doTranscribe,
+  };
 }
