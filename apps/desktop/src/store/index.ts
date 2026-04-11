@@ -70,10 +70,6 @@ interface JotStore {
   saveAutoSync: (v: boolean) => Promise<void>;
   _autoSyncIfEnabled: () => void;
 
-  // Enrich
-  enrichPrompt: string;
-  loadEnrichPrompt: () => Promise<void>;
-  saveEnrichPrompt: (prompt: string) => Promise<void>;
 
   // Toasts
   toasts: Toast[];
@@ -196,10 +192,6 @@ export const useJotStore = create<JotStore>((set, get) => ({
     if (!autoSync || !obsidian.vaultPath) return;
     get().syncWithObsidian();
   },
-
-  enrichPrompt: '',
-  loadEnrichPrompt: async () => set({ enrichPrompt: (await getSecret('enrich_prompt')) ?? '' }),
-  saveEnrichPrompt: async (prompt) => { await setSecret('enrich_prompt', prompt); set({ enrichPrompt: prompt }); },
 
   toasts: [],
   addToast: (type, message) => {

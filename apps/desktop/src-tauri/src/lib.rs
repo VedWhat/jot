@@ -115,6 +115,47 @@ fn write_file(path: String, content: String) -> Result<(), String> {
     std::fs::write(&path, content).map_err(|e| e.to_string())
 }
 
+// ── File system helpers (Obsidian reconcile) ─────────────────────────────────
+
+#[tauri::command]
+fn list_md_files(dir: String) -> Result<Vec<String>, String> {
+    let path = std::path::Path::new(&dir);
+    if !path.exists() {
+        return Ok(vec![]);
+    }
+    let mut files = Vec::new();
+    collect_md(path, &mut files).map_err(|e| e.to_string())?;
+    Ok(files)
+}
+
+fn collect_md(dir: &std::path::Path, out: &mut Vec<String>) -> std::io::Result<()> {
+    for entry in std::fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_dir() {
+            collect_md(&path, out)?;
+        } else if path.extension().and_then(|e| e.to_str()) == Some("md") {
+            if let Some(s) = path.to_str() {
+                out.push(s.to_string());
+            }
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn delete_file(path: String) -> Result<(), String> {
+    let p = std::path::Path::new(&path);
+    if p.exists() {
+        std::fs::remove_file(p).map_err(|e| e.to_string())?;
+        // Remove the parent directory if it's now empty
+        if let Some(parent) = p.parent() {
+            let _ = std::fs::remove_dir(parent);
+        }
+    }
+    Ok(())
+}
+
 // ── Git command (Obsidian vault versioning) ──────────────────────────────────
 
 #[tauri::command]
@@ -230,6 +271,8 @@ pub fn run() {
             set_secret,
             delete_secret,
             write_file,
+            list_md_files,
+            delete_file,
             run_git,
             set_compact_mode,
         ])

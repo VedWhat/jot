@@ -1,40 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { useJotStore } from '../store';
+import React, { useState, useEffect } from "react";
+import { useJotStore } from "../store";
 
-type Tab = 'keys' | 'sync' | 'enrich';
-
-const DEFAULT_ENRICH_PROMPT = `Classify this voice note and turn it into something actionable.
-
-Categories: idea | task | remember | other
-
-Structure your response based on the category:
-
-IDEA:
-**Core insight:** One sentence — what is this idea, specifically?
-**Why it matters:** What problem does it solve or opportunity does it create?
-**Angles to explore:** 3–5 specific questions worth investigating
-**Next steps:** 2–4 actions (verb-first, specific enough to do today)
-
-TASK:
-**Goal:** What done looks like
-**Steps:**
-- [ ] Step 1 (action verb + specific outcome)
-- [ ] Step 2
-**Blockers:** Anything that needs to happen first
-
-REMEMBER:
-**What:** The fact, reference, or thing to recall
-**Why:** When this will be useful
-**Context:** Related ideas or background
-
-OTHER:
-Rewrite cleanly — fix grammar, improve clarity, preserve all meaning.`;
+type Tab = "keys" | "sync";
 
 function Input({
-  label, value, onChange, placeholder, type = 'text', hint,
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = "text",
+  hint,
 }: {
-  label: string; value: string; onChange: (v: string) => void;
-  placeholder?: string; type?: string; hint?: string;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  type?: string;
+  hint?: string;
 }) {
   return (
     <div>
@@ -53,13 +35,21 @@ function Input({
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="font-mono text-[9px] font-bold text-stone-600 uppercase tracking-widest">{children}</p>
+    <p className="font-mono text-[9px] font-bold text-stone-600 uppercase tracking-widest">
+      {children}
+    </p>
   );
 }
 
 function ActionBtn({
-  onClick, disabled, children,
-}: { onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
+  onClick,
+  disabled,
+  children,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
   return (
     <button
       onClick={onClick}
@@ -71,7 +61,15 @@ function ActionBtn({
   );
 }
 
-function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+function Toggle({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+}) {
   return (
     <div className="flex items-center justify-between select-none">
       <span className="text-[13px] text-stone-700">{label}</span>
@@ -80,14 +78,16 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
         aria-checked={checked}
         onClick={() => onChange(!checked)}
         className={[
-          'relative flex-shrink-0 w-9 h-5 rounded-full transition-colors duration-200',
-          checked ? 'bg-stone-700' : 'bg-stone-200',
-        ].join(' ')}
+          "relative flex-shrink-0 w-9 h-5 rounded-full transition-colors duration-200",
+          checked ? "bg-stone-700" : "bg-stone-200",
+        ].join(" ")}
       >
-        <span className={[
-          'absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200',
-          checked ? 'translate-x-4' : 'translate-x-0',
-        ].join(' ')} />
+        <span
+          className={[
+            "absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200",
+            checked ? "translate-x-4" : "translate-x-0",
+          ].join(" ")}
+        />
       </button>
     </div>
   );
@@ -95,19 +95,25 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
 
 export function SettingsPanel() {
   const {
-    settingsOpen, setSettingsOpen,
-    apiKeys, saveApiKey,
-    obsidian, saveObsidianSettings, syncWithObsidian, isSyncingObsidian, obsidianSyncError, obsidianSyncSuccess,
-    enrichPrompt, saveEnrichPrompt,
-    autoSync, saveAutoSync,
+    settingsOpen,
+    setSettingsOpen,
+    apiKeys,
+    saveApiKey,
+    obsidian,
+    saveObsidianSettings,
+    syncWithObsidian,
+    isSyncingObsidian,
+    obsidianSyncError,
+    obsidianSyncSuccess,
+    autoSync,
+    saveAutoSync,
   } = useJotStore();
 
-  const [activeTab, setActiveTab] = useState<Tab>('keys');
-  const [openaiKey, setOpenaiKey] = useState('');
-  const [elevenKey, setElevenKey] = useState('');
-  const [vaultPath, setVaultPath] = useState('');
-  const [gitRemote, setGitRemote] = useState('');
-  const [enrichDraft, setEnrichDraft] = useState('');
+  const [activeTab, setActiveTab] = useState<Tab>("keys");
+  const [openaiKey, setOpenaiKey] = useState("");
+  const [elevenKey, setElevenKey] = useState("");
+  const [vaultPath, setVaultPath] = useState("");
+  const [gitRemote, setGitRemote] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveOk, setSaveOk] = useState(false);
 
@@ -117,7 +123,6 @@ export function SettingsPanel() {
     setElevenKey(apiKeys.elevenlabs);
     setVaultPath(obsidian.vaultPath);
     setGitRemote(obsidian.gitRemote);
-    setEnrichDraft(enrichPrompt);
   }, [settingsOpen]);
 
   if (!settingsOpen) return null;
@@ -126,15 +131,17 @@ export function SettingsPanel() {
     setSaving(true);
     try {
       await Promise.all([
-        saveApiKey('openai', openaiKey),
-        saveApiKey('elevenlabs', elevenKey),
+        saveApiKey("openai", openaiKey),
+        saveApiKey("elevenlabs", elevenKey),
         saveObsidianSettings({ vaultPath, gitRemote }),
-        saveEnrichPrompt(enrichDraft),
       ]);
       setSaveOk(true);
       setTimeout(() => setSaveOk(false), 2000);
-    } catch { /* errors shown inline */ }
-    finally { setSaving(false); }
+    } catch {
+      /* errors shown inline */
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -152,16 +159,16 @@ export function SettingsPanel() {
 
       {/* Tab bar */}
       <div className="flex border-b border-stone-200 px-5">
-        {(['keys', 'sync', 'enrich'] as Tab[]).map((tab) => (
+        {(["keys", "sync"] as Tab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={[
-              'font-mono text-[10px] font-bold uppercase tracking-widest py-2.5 mr-6 border-b-2 -mb-px transition-colors',
+              "font-mono text-[10px] font-bold uppercase tracking-widest py-2.5 mr-6 border-b-2 -mb-px transition-colors",
               activeTab === tab
-                ? 'text-stone-900 border-stone-900'
-                : 'text-stone-400 border-transparent hover:text-stone-700',
-            ].join(' ')}
+                ? "text-stone-900 border-stone-900"
+                : "text-stone-400 border-transparent hover:text-stone-700",
+            ].join(" ")}
           >
             {tab}
           </button>
@@ -170,9 +177,8 @@ export function SettingsPanel() {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
-
         {/* ── Keys tab ── */}
-        {activeTab === 'keys' && (
+        {activeTab === "keys" && (
           <>
             <Input
               label="OpenAI (Whisper + Enrich)"
@@ -192,7 +198,7 @@ export function SettingsPanel() {
         )}
 
         {/* ── Sync tab ── */}
-        {activeTab === 'sync' && (
+        {activeTab === "sync" && (
           <>
             <Toggle
               label="Auto-sync on save"
@@ -200,7 +206,8 @@ export function SettingsPanel() {
               onChange={saveAutoSync}
             />
             <p className="text-[11px] text-stone-500 leading-relaxed">
-              When on, every saved or deleted jot automatically exports to your Obsidian vault.
+              When on, every saved or deleted jot automatically exports to your
+              Obsidian vault.
             </p>
 
             <div className="pt-3 border-t border-stone-100">
@@ -220,54 +227,34 @@ export function SettingsPanel() {
               placeholder="git@github.com:you/jots-private.git"
               hint="If set, jots are committed and pushed here on every sync using your system's git credentials."
             />
-            {obsidianSyncError && <p className="font-mono text-[10px] text-accent">{obsidianSyncError}</p>}
-            {obsidianSyncSuccess && <p className="font-mono text-[10px] text-emerald-600">{obsidianSyncSuccess}</p>}
-            <ActionBtn onClick={syncWithObsidian} disabled={isSyncingObsidian || !obsidian.vaultPath}>
-              {isSyncingObsidian ? 'exporting...' : '→  export to obsidian'}
-            </ActionBtn>
-          </>
-        )}
-
-        {/* ── Enrich tab ── */}
-        {activeTab === 'enrich' && (
-          <>
-            <p className="text-[12px] text-stone-600 leading-relaxed">
-              When you enrich a jot, this prompt guides the AI to classify and develop your transcript. Uses <span className="font-mono">gpt-4o-mini</span> with your OpenAI key.
-            </p>
-            <p className="text-[11px] text-stone-500 leading-relaxed">
-              Categories: <span className="font-mono">idea</span> · <span className="font-mono">task</span> · <span className="font-mono">remember</span> · <span className="font-mono">other</span>. Obsidian sync routes each to its own subfolder.
-            </p>
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-[11px] font-medium text-stone-600">Prompt</p>
-                <button
-                  onClick={() => setEnrichDraft(DEFAULT_ENRICH_PROMPT)}
-                  className="font-mono text-[9px] text-stone-500 hover:text-stone-700 uppercase tracking-widest"
-                >
-                  insert default
-                </button>
-              </div>
-              <textarea
-                value={enrichDraft}
-                onChange={(e) => setEnrichDraft(e.target.value)}
-                placeholder="Click 'insert default' above to get started..."
-                rows={10}
-                className="w-full text-[12px] text-stone-800 border border-stone-200 rounded-lg px-3 py-2.5 bg-white outline-none focus:border-stone-400 placeholder:text-stone-300 transition-colors font-mono leading-relaxed"
-              />
-            </div>
-            {!apiKeys.openai && (
-              <p className="font-mono text-[10px] text-stone-500">⚠ Add your OpenAI key in the keys tab first</p>
+            {obsidianSyncError && (
+              <p className="font-mono text-[10px] text-accent">
+                {obsidianSyncError}
+              </p>
             )}
+            {obsidianSyncSuccess && (
+              <p className="font-mono text-[10px] text-emerald-600">
+                {obsidianSyncSuccess}
+              </p>
+            )}
+            <ActionBtn
+              onClick={syncWithObsidian}
+              disabled={isSyncingObsidian || !obsidian.vaultPath}
+            >
+              {isSyncingObsidian ? "exporting..." : "→  export to obsidian"}
+            </ActionBtn>
           </>
         )}
       </div>
 
       {/* Footer */}
       <div className="px-5 py-4 border-t border-stone-200 flex items-center justify-between">
-        <span className={[
-          'font-mono text-[10px] transition-opacity',
-          saveOk ? 'text-emerald-600 opacity-100' : 'opacity-0',
-        ].join(' ')}>
+        <span
+          className={[
+            "font-mono text-[10px] transition-opacity",
+            saveOk ? "text-emerald-600 opacity-100" : "opacity-0",
+          ].join(" ")}
+        >
           saved
         </span>
         <button
@@ -275,7 +262,7 @@ export function SettingsPanel() {
           disabled={saving}
           className="px-6 py-2 rounded-xl bg-stone-900 text-white text-[13px] font-medium hover:bg-stone-800 transition-colors disabled:opacity-40"
         >
-          {saving ? 'saving...' : 'save'}
+          {saving ? "saving..." : "save"}
         </button>
       </div>
     </div>

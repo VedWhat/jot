@@ -12,7 +12,32 @@ const CATEGORY_DOT: Record<string, string> = {
   other:    'bg-stone-300',
 };
 
-const ENRICH_SCHEMA_SUFFIX = `
+const ENRICH_PROMPT = `Classify this voice note and turn it into something actionable.
+
+Categories: idea | task | remember | other
+
+Structure your response based on the category:
+
+IDEA:
+**Core insight:** One sentence — what is this idea, specifically?
+**Why it matters:** What problem does it solve or opportunity does it create?
+**Angles to explore:** 3–5 specific questions worth investigating
+**Next steps:** 2–4 actions (verb-first, specific enough to do today)
+
+TASK:
+**Goal:** What done looks like
+**Steps:**
+- [ ] Step 1 (action verb + specific outcome)
+- [ ] Step 2
+**Blockers:** Anything that needs to happen first
+
+REMEMBER:
+**What:** The fact, reference, or thing to recall
+**Why:** When this will be useful
+**Context:** Related ideas or background
+
+OTHER:
+Rewrite cleanly — fix grammar, improve clarity, preserve all meaning.
 
 You MUST respond with only a JSON object — no markdown, no explanation, nothing else.
 Required fields:
@@ -22,8 +47,8 @@ Required fields:
 
 Example shape: {"category":"idea","title":"Build a voice-first todo app","content":"..."}`;
 
-async function callEnrich(transcript: string, userPrompt: string, apiKey: string): Promise<EnrichResult> {
-  const systemPrompt = userPrompt.trim() + ENRICH_SCHEMA_SUFFIX;
+async function callEnrich(transcript: string, apiKey: string): Promise<EnrichResult> {
+  const systemPrompt = ENRICH_PROMPT;
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -68,10 +93,9 @@ export function JotCard({ jot }: { jot: Jot }) {
   const removeJot = useJotStore((s) => s.removeJot);
   const editJot = useJotStore((s) => s.editJot);
   const apiKeys = useJotStore((s) => s.apiKeys);
-  const enrichPrompt = useJotStore((s) => s.enrichPrompt);
   const addToast = useJotStore((s) => s.addToast);
 
-  const canEnrich = !!apiKeys.openai && !!enrichPrompt;
+  const canEnrich = !!apiKeys.openai;
   const categoryDot = jot.category ? CATEGORY_DOT[jot.category] ?? 'bg-stone-300' : null;
 
   function startEditing() {
@@ -94,7 +118,7 @@ export function JotCard({ jot }: { jot: Jot }) {
     setEnriching(true);
     setEnriched(null);
     try {
-      const result = await callEnrich(jot.transcript, enrichPrompt, apiKeys.openai);
+      const result = await callEnrich(jot.transcript, apiKeys.openai);
       setEnriched(result);
     } catch (e: any) {
       addToast('error', `Enrich failed: ${e.message}`);

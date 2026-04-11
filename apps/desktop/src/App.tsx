@@ -40,14 +40,13 @@ function Toasts() {
 }
 
 export default function App() {
-  const { view, loadJots, loadApiKeys, loadObsidianSettings, loadEnrichPrompt, loadAutoSync } = useJotStore();
+  const { view, loadJots, loadApiKeys, loadObsidianSettings, loadAutoSync } = useJotStore();
 
   useEffect(() => {
     Promise.all([
       loadJots(),
       loadApiKeys(),
       loadObsidianSettings(),
-      loadEnrichPrompt(),
       loadAutoSync(),
     ]).catch(console.error);
   }, []);

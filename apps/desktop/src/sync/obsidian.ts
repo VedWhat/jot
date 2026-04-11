@@ -47,10 +47,14 @@ export async function syncToObsidian(jots: Jot[], vaultPath: string, gitRemote?:
 
   console.log('[obsidian] syncing', jots.length, 'jots to', jotsRoot, gitRemote ? `remote: ${gitRemote}` : '(no remote)');
 
+  // ── Write all current jots, track expected paths ──────────────────────────
+  const expectedPaths = new Set<string>();
+
   for (const jot of jots) {
+    const folder = jotFolder(jot, jotsRoot);
+    const path = `${folder}/${safeFilename(jot)}`;
+    expectedPaths.add(path);
     try {
-      const folder = jotFolder(jot, jotsRoot);
-      const path = `${folder}/${safeFilename(jot)}`;
       await invoke<void>('write_file', { path, content: formatAsMarkdown(jot) });
       result.synced++;
     } catch (e) {
@@ -60,10 +64,29 @@ export async function syncToObsidian(jots: Jot[], vaultPath: string, gitRemote?:
     }
   }
 
-  console.log('[obsidian] wrote', result.synced, 'files,', result.errors.length, 'errors');
+  // ── Reconcile: delete any .md files not in the current jot set ───────────
+  // This handles deletions and title/category changes (old file → new path).
+  let deleted = 0;
+  try {
+    const existingFiles = await invoke<string[]>('list_md_files', { dir: jotsRoot });
+    for (const file of existingFiles) {
+      if (!expectedPaths.has(file)) {
+        console.log('[obsidian] deleting orphan:', file);
+        await invoke<void>('delete_file', { path: file });
+        deleted++;
+      }
+    }
+  } catch (e) {
+    // Vault folder doesn't exist yet — nothing to reconcile
+    console.log('[obsidian] reconcile skipped:', e);
+  }
 
-  if (result.synced > 0) {
-    // Git commit + push — credentials come from the system (macOS Keychain / SSH keys).
+  console.log('[obsidian] wrote', result.synced, 'deleted', deleted, 'errors', result.errors.length);
+
+  // ── Git commit + push ─────────────────────────────────────────────────────
+  // Run if anything changed (writes or deletes). Credentials come from the
+  // system (macOS Keychain / SSH keys).
+  if (result.synced > 0 || deleted > 0) {
     try {
       console.log('[git] init');
       await invoke<string>('run_git', { dir: jotsRoot, args: ['init'] });
